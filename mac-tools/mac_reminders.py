@@ -38,11 +38,13 @@ def read_backup(path):
 
 def due(data,now):
     section_ids={str(s.get('id')) for s in data.get('sections',[]) if isinstance(s,dict) and s.get('visible',True)}
+    if float((data.get('preferences') or {}).get('pauseUntil') or 0)>now.timestamp()*1000:
+        return []
     date=now.strftime('%Y-%m-%d'); weekday=now.weekday(); found=[]
     completed=data.get('completions',{}) or {}
     pref=data.get('preferences',{}) or {}
     for item in data.get('tasks',[]):
-        if not isinstance(item,dict) or not item.get('remind') or item.get('active') is False or str(item.get('sectionId')) not in section_ids or weekday not in item.get('days',[]):
+        if not isinstance(item,dict) or not item.get('remind') or item.get('active') is False or str(item.get('sectionId')) not in section_ids or weekday not in item.get('days',[]) or (item.get('oneOffDate') and item.get('oneOffDate')!=date):
             continue
         time=item.get('time')
         if not valid_time(time) or quiet(time,pref.get('quietStart','23:00'),pref.get('quietEnd','07:00')):
