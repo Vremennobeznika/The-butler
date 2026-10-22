@@ -29,6 +29,13 @@ class HelperTests(unittest.TestCase):
         names={e['id'] for e in mod.due(backup(),dt.datetime(2026,10,22,13,0))}
         self.assertEqual(names,{'lunch','milk'})
 
+    def test_legacy_one_off_date(self):
+        data=backup();data['tasks'][1].pop('oneOffDate');data['tasks'][1]['date']='2026-10-23'
+        ids={x['id'] for x in mod.due(data,dt.datetime(2026,10,23,13,0))}
+        self.assertIn('one',ids)
+        ids={x['id'] for x in mod.due(data,dt.datetime(2026,10,22,13,0))}
+        self.assertNotIn('one',ids)
+
     def test_completed_and_disabled_are_suppressed(self):
         b=backup();b['completions']['2026-10-23::lunch']=True;b['shopping'][0]['done']=True;b['tasks'][1]['remind']=False
         self.assertFalse(mod.due(b,dt.datetime(2026,10,23,13,0)))

@@ -44,7 +44,7 @@ def due(data,now):
     completed=data.get('completions',{}) or {}
     pref=data.get('preferences',{}) or {}
     for item in data.get('tasks',[]):
-        if not isinstance(item,dict) or not item.get('remind') or item.get('active') is False or str(item.get('sectionId')) not in section_ids or (item.get('oneOffDate')!=date if item.get('oneOffDate') else weekday not in item.get('days',[])):
+        if not isinstance(item,dict) or not item.get('remind') or item.get('active') is False or str(item.get('sectionId')) not in section_ids or ((item.get('oneOffDate') or item.get('date'))!=date if (item.get('oneOffDate') or item.get('date')) else weekday not in item.get('days',[])):
             continue
         time=item.get('time')
         if not valid_time(time) or quiet(now.strftime('%H:%M'),pref.get('quietStart','23:00'),pref.get('quietEnd','07:00')):
