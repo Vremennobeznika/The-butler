@@ -1,0 +1,24 @@
+name: Butler checks
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate JS syntax
+        run: |
+          node --check model.js
+          node --check app.js
+          node --check config.js
+          node --check extras.js
+          node --check sw.js
+      - name: Run planner tests
+        run: node --test tests/*.test.cjs
+      - name: Validate macOS helper Python syntax
+        run: python3 -m py_compile mac-tools/mac_reminders.py
