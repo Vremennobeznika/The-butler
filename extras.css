@@ -1,0 +1,12 @@
+/* Day cockpit in the existing monochrome visual language. */
+.cockpit{margin:14px 0 17px}
+.cockpit .settings-head{margin-bottom:8px}
+.gap-top{margin-top:18px}
+.butler-essentials{display:grid;gap:8px;margin-top:12px}
+.butler-essential{display:flex;align-items:center;gap:10px;border:1px solid var(--line);background:var(--panel);padding:9px 11px;border-radius:11px;min-width:0}
+.butler-essential-name{flex:1;min-width:0;overflow-wrap:anywhere}
+.butler-essential button{flex-shrink:0}
+.butler-quick{margin:10px 0 0;align-items:end}
+.butler-quick input[type=date],.butler-quick input[type=time]{min-width:120px;max-width:100%}
+.butler-shortcuts{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+@media(max-width:460px){.butler-quick{display:grid;grid-template-columns:1fr 1fr;gap:9px}.butler-quick .grow{grid-column:1 / -1}.butler-quick button{min-width:0}.butler-essential{flex-wrap:wrap}.butler-essential-name{flex-basis:48%}}
