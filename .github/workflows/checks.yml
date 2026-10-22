@@ -20,5 +20,9 @@ jobs:
           node --check sw.js
       - name: Run planner tests
         run: node --test tests/*.test.cjs
-      - name: Test local Mac helper\n        run: python3 -m unittest discover -s mac-tools/tests -v\n      - name: Check macOS shell scripts\n        run: bash -n mac-tools/*.sh\n      - name: Validate macOS helper Python syntax
+      - name: Test local Mac helper
+        run: python3 -m unittest discover -s mac-tools/tests -v
+      - name: Check macOS shell scripts
+        run: bash -n mac-tools/*.sh
+      - name: Validate macOS helper Python syntax
         run: python3 -m py_compile mac-tools/mac_reminders.py
