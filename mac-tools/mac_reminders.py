@@ -44,22 +44,22 @@ def due(data,now):
     completed=data.get('completions',{}) or {}
     pref=data.get('preferences',{}) or {}
     for item in data.get('tasks',[]):
-        if not isinstance(item,dict) or not item.get('remind') or item.get('active') is False or str(item.get('sectionId')) not in section_ids or weekday not in item.get('days',[]) or (item.get('oneOffDate') and item.get('oneOffDate')!=date):
+        if not isinstance(item,dict) or not item.get('remind') or item.get('active') is False or str(item.get('sectionId')) not in section_ids or (item.get('oneOffDate')!=date if item.get('oneOffDate') else weekday not in item.get('days',[])):
             continue
         time=item.get('time')
-        if not valid_time(time) or quiet(time,pref.get('quietStart','23:00'),pref.get('quietEnd','07:00')):
+        if not valid_time(time) or quiet(now.strftime('%H:%M'),pref.get('quietStart','23:00'),pref.get('quietEnd','07:00')):
             continue
         hour,minute=map(int,time.split(':')); planned=now.replace(hour=hour,minute=minute,second=0,microsecond=0)
-        if 0<=(now-planned).total_seconds()<600 and not completed.get(f"{date}::{item.get('id')}"):
+        if 0<=(now-planned).total_seconds()<=3600 and not completed.get(f"{date}::{item.get('id')}"):
             found.append({'id':str(item.get('id','')),'type':'task','title':str(item.get('title','Дело'))[:120],'time':time,'key':f"{date}::task::{item.get('id')}"})
     for item in data.get('shopping',[]):
         if not isinstance(item,dict) or not item.get('remind') or item.get('done') or str(item.get('sectionId')) not in section_ids:
             continue
         time=item.get('time')
-        if not valid_time(time) or quiet(time,pref.get('quietStart','23:00'),pref.get('quietEnd','07:00')):
+        if not valid_time(time) or quiet(now.strftime('%H:%M'),pref.get('quietStart','23:00'),pref.get('quietEnd','07:00')):
             continue
         hour,minute=map(int,time.split(':'));planned=now.replace(hour=hour,minute=minute,second=0,microsecond=0)
-        if 0<=(now-planned).total_seconds()<600:
+        if 0<=(now-planned).total_seconds()<=3600:
             found.append({'id':str(item.get('id','')),'type':'shopping','title':str(item.get('title','Покупка'))[:120],'time':time,'key':f"{date}::shopping::{item.get('id')}"})
     return found
 

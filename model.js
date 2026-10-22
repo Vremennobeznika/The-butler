@@ -22,28 +22,42 @@ const out={version:2,sections:safeSections(raw.sections),tasks:safeTasks(raw.tas
 // Preserve usable data but drop records whose section is gone.
 const ids=new Set(out.sections.map(s=>s.id));out.tasks=out.tasks.filter(t=>ids.has(t.sectionId)&&out.sections.find(s=>s.id===t.sectionId)?.type==='routine');out.shopping=out.shopping.filter(t=>ids.has(t.sectionId)&&out.sections.find(s=>s.id===t.sectionId)?.type==='shopping');
 return out;}
-const taskOccurs=(task,date)=>task.active!==false&&(!task.oneOffDate||task.oneOffDate===localDate(date))&&Array.isArray(task.days)&&task.days.includes(mondayDay(date));
+const taskOccurs=(task,date)=>task.active!==false&&(task.oneOffDate?task.oneOffDate===localDate(date):Array.isArray(task.days)&&task.days.includes(mondayDay(date)));
 function progress(tasks,completions,date){const day=localDate(date);const active=tasks.filter(t=>taskOccurs(t,date));return{done:active.filter(t=>completions[day+'::'+t.id]).length,total:active.length};}
 function inQuiet(time,start,end){if(!validTime(start)||!validTime(end)||start===end)return false;return start<end?time>=start&&time<end:time>=start||time<end;}
-function dueTasks(state,when){if((Number(state.preferences?.pauseUntil)||0)>when.getTime())return [];const date=localDate(when),now=when.getHours()*60+when.getMinutes();const events=[];const sectionMap=new Map(state.sections.map(s=>[s.id,s]));
-for(const task of state.tasks){const s=sectionMap.get(task.sectionId);if(!s||!s.visible||!task.remind||!taskOccurs(task,when)||state.completions[date+'::'+task.id])continue;
-const k=date+'::task::'+task.id;const minute=Number(task.time.slice(0,2))*60+Number(task.time.slice(3));const grace=state.snoozes[k]?2:15;const effective=state.snoozes[k]?new Date(state.snoozes[k]):new Date(when.getFullYear(),when.getMonth(),when.getDate(),Number(task.time.slice(0,2)),Number(task.time.slice(3)));
-const delta=(when.getTime()-effective.getTime())/60000;
-if(delta>=0&&delta<=grace&&!state.sent[k]&&!inQuiet(task.time,state.preferences.quietStart,state.preferences.quietEnd))events.push({key:k,id:task.id,title:task.title,time:task.time,type:'task'});
+function dueTasks(state,when){if((Number(state.preferences?.pauseUntil)||0)>when.getTime())return [];const today=localDate(when),events=[];const visible=new Map(state.sections.filter(s=>s.visible).map(s=>[s.id,s]));
+ const localNow=String(when.getHours()).padStart(2,'0')+':'+String(when.getMinutes()).padStart(2,'0');
+ if(inQuiet(localNow,state.preferences.quietStart,state.preferences.quietEnd))return [];
+ for(const date of [localDate(addDays(when,-1)),today]){
+  const day=dateFromKey(date),yesterday=date!==today;
+  for(const task of state.tasks){if(!visible.get(task.sectionId)||!task.remind||!taskOccurs(task,day)||state.completions[date+'::'+task.id])continue;
+   const key=date+'::task::'+task.id;const snooze=state.snoozes[key];if(yesterday&&!snooze)continue;
+   const planned=snooze?new Date(snooze):new Date(day.getFullYear(),day.getMonth(),day.getDate(),Number(task.time.slice(0,2)),Number(task.time.slice(3)));
+   const delta=(when.getTime()-planned.getTime())/60000;
+   if(delta>=0&&delta<=(snooze?15:60)&&!state.sent[key])events.push({key,dateKey:date,id:task.id,title:task.title,time:task.time,type:'task',late:delta>15});
+  }
+  for(const item of state.shopping){if(!visible.get(item.sectionId)||!item.remind||item.done||!validTime(item.time))continue;
+   const key=date+'::shopping::'+item.id;const snooze=state.snoozes[key];if(yesterday&&!snooze)continue;
+   const planned=snooze?new Date(snooze):new Date(day.getFullYear(),day.getMonth(),day.getDate(),Number(item.time.slice(0,2)),Number(item.time.slice(3)));
+   const delta=(when.getTime()-planned.getTime())/60000;
+   if(delta>=0&&delta<=(snooze?15:60)&&!state.sent[key])events.push({key,dateKey:date,id:item.id,title:'Купить: '+item.title,time:item.time,type:'shopping',late:delta>15});
+  }
+ }
+ return events;
 }
-for(const item of state.shopping){const s=sectionMap.get(item.sectionId);if(!s||!s.visible||!item.remind||item.done||!validTime(item.time))continue;const k=date+'::shopping::'+item.id;const effective=state.snoozes[k]?new Date(state.snoozes[k]):new Date(when.getFullYear(),when.getMonth(),when.getDate(),Number(item.time.slice(0,2)),Number(item.time.slice(3)));
-const delta=(when.getTime()-effective.getTime())/60000;
-if(delta>=0&&delta<=(state.snoozes[k]?2:15)&&!state.sent[k]&&!inQuiet(item.time,state.preferences.quietStart,state.preferences.quietEnd))events.push({key:k,id:item.id,title:'Купить: '+item.title,time:item.time,type:'shopping'});
-}
-return events;}
 function monthStats(ledger,date){const ym=localDate(date).slice(0,7);const entries=ledger.filter(t=>t.date.startsWith(ym));const income=entries.filter(t=>t.kind==='income').reduce((a,x)=>a+x.amount,0);const expense=entries.filter(t=>t.kind==='expense').reduce((a,x)=>a+x.amount,0);return{income:Math.round(income*100)/100,expense:Math.round(expense*100)/100,balance:Math.round((income-expense)*100)/100};}
 const icsEscape=s=>String(s??'').replace(/\\/g,'\\\\').replace(/\r?\n/g,'\\n').replace(/;/g,'\\;').replace(/,/g,'\\,');
 const icsStamp=d=>[d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('')+'T'+[d.getHours(),d.getMinutes(),d.getSeconds()].map(v=>String(v).padStart(2,'0')).join('');
 function foldIcs(line){const out=[];let current='',bytes=0;for(const ch of line){const n=new TextEncoder().encode(ch).length;if(bytes+n>75&&current){out.push(current);current=' '+ch;bytes=1+n}else{current+=ch;bytes+=n}}out.push(current);return out.join('\r\n');}
-function icsExport(state,start,days=30){const lines=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Local Life//Personal Reminder//RU','CALSCALE:GREGORIAN','METHOD:PUBLISH'];const sectionMap=new Map(state.sections.map(s=>[s.id,s]));const count=Math.min(90,Math.max(1,days));for(let n=0;n<count;n++){const date=addDays(start,n);for(const t of state.tasks){if(!t.remind||!taskOccurs(t,date)||!sectionMap.get(t.sectionId)?.visible)continue;const [h,m]=t.time.split(':').map(Number);const begin=new Date(date.getFullYear(),date.getMonth(),date.getDate(),h,m,0);const end=new Date(begin.getTime()+5*60000);const day=localDate(date);
-lines.push('BEGIN:VEVENT','UID:'+icsEscape(t.id+'-'+day)+'@local-life','DTSTAMP:'+new Date().toISOString().replace(/[-:]/g,'').replace(/\.\d{3}Z$/,'Z'),'DTSTART:'+icsStamp(begin),'DTEND:'+icsStamp(end),'SUMMARY:'+icsEscape(t.title),'DESCRIPTION:'+icsEscape(t.note||'Локальное напоминание'),'BEGIN:VALARM','ACTION:DISPLAY','DESCRIPTION:'+icsEscape(t.title),'TRIGGER:PT0S','END:VALARM','END:VEVENT');}}
-lines.push('END:VCALENDAR');return lines.map(foldIcs).join('\r\n')+'\r\n';}
+function icsExport(state,start,days=30){const lines=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Local Life//Personal Reminder//RU','CALSCALE:GREGORIAN','METHOD:PUBLISH'];const visible=new Set(state.sections.filter(s=>s.visible).map(s=>s.id));const count=Math.min(90,Math.max(1,days));
+ const stamp=new Date().toISOString().replace(/[-:]/g,'').replace(/\.\d{3}Z$/,'Z');
+ function event(title,note,id,date,time){const [h,m]=time.split(':').map(Number),begin=new Date(date.getFullYear(),date.getMonth(),date.getDate(),h,m,0),end=new Date(begin.getTime()+5*60000);lines.push('BEGIN:VEVENT','UID:'+icsEscape(id+'-'+localDate(date))+'@local-life','DTSTAMP:'+stamp,'DTSTART:'+icsStamp(begin),'DTEND:'+icsStamp(end),'SUMMARY:'+icsEscape(title),'DESCRIPTION:'+icsEscape(note||'Локальное напоминание'),'BEGIN:VALARM','ACTION:DISPLAY','DESCRIPTION:'+icsEscape(title),'TRIGGER:PT0S','END:VALARM','END:VEVENT')}
+ for(let n=0;n<count;n++){const date=addDays(start,n);for(const t of state.tasks){if(!t.remind||!visible.has(t.sectionId)||!taskOccurs(t,date))continue;event(t.title,t.note,'task-'+t.id,date,t.time);}}
+ // A shopping reminder is exported once, not 30 copies of the same unpurchased item.
+ for(const item of state.shopping){if(!item.remind||item.done||!validTime(item.time)||!visible.has(item.sectionId))continue;let date=addDays(start,0);const [h,m]=item.time.split(':').map(Number);if(new Date(date.getFullYear(),date.getMonth(),date.getDate(),h,m)<start)date=addDays(date,1);event('Купить: '+item.title,item.qty,'shopping-'+item.id,date,item.time)}
+ lines.push('END:VCALENDAR');return lines.map(foldIcs).join('\r\n')+'\r\n';}
+function ledgerCSV(ledger){const escape=value=>{let s=String(value??'').replace(/\r?\n/g,' ');if(/^\s*[=+\-@]/.test(s))s="'"+s;return '"'+s.replace(/"/g,'""')+'"'};return '\ufeff'+[['Дата','Тип','Сумма','Категория','Комментарий'],...ledger.map(x=>[x.date,x.kind==='income'?'Доход':'Расход',x.amount.toFixed(2),x.category,x.note])].map(x=>x.map(escape).join(';')).join('\r\n')+'\r\n'}
 function parseLegacyHTML(source){if(typeof source!=='string'||source.length>2000000)throw Error('Недопустимый HTML');const match=/const\s+schedule\s*=\s*\{/g.exec(source);if(!match)throw Error('В файле нет расписания прежнего календаря');const start=source.indexOf('{',match.index),str=source.slice(start);let inString=false,escaped=false,depth=0,end=-1;for(let i=0;i<str.length;i++){const c=str[i];if(inString){if(escaped)escaped=false;else if(c==='\\')escaped=true;else if(c==='"')inString=false;}else if(c==='"')inString=true;else if(c==='{')depth++;else if(c==='}'){depth--;if(depth===0){end=i+1;break}}}if(end<0)throw Error('Не найден конец расписания');let raw=JSON.parse(str.slice(0,end));const clean={};for(const day of DAY_NAMES){if(!Array.isArray(raw[day]))throw Error('Нет дня недели '+day);clean[day]=raw[day].slice(0,150).filter(x=>x&&validTime(x.time)&&safeString(x.task)).map(x=>({time:x.time,title:safeString(x.task)}));}return clean;}
 function trimHistory(state,today){const horizon=localDate(addDays(today,-45));for(const k of Object.keys(state.sent))if(k.slice(0,10)<horizon)delete state.sent[k];for(const k of Object.keys(state.snoozes))if(k.slice(0,10)<horizon)delete state.snoozes[k];for(const k of Object.keys(state.completions))if(k.slice(0,10)<localDate(addDays(today,-400)))delete state.completions[k];}
-return{DAY_NAMES,safeString,validTime,localDate,dateFromKey,addDays,mondayDay,uid,emptyState,normalize,taskOccurs,progress,inQuiet,dueTasks,monthStats,icsExport,trimHistory,parseLegacyHTML};
+return{DAY_NAMES,safeString,validTime,validDate,localDate,dateFromKey,addDays,mondayDay,uid,emptyState,normalize,taskOccurs,progress,inQuiet,dueTasks,monthStats,icsExport,ledgerCSV,trimHistory,parseLegacyHTML};
 });

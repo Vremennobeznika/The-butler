@@ -55,7 +55,7 @@
   <button class="primary" type="submit">Записать операцию</button>
  </form>
  <div class="filter-wrap"><label for="financeMonth">Месяц</label><input id="financeMonth" type="month"></div>
- <div id="ledgerItems" class="panel-list"></div>
+ <div class="actions"><button type="button" id="financeCSV">Экспорт операций (.csv)</button></div><div id="ledgerItems" class="panel-list"></div>
 </section>
 <section id="page-settings" class="page" aria-labelledby="settingsHeading" hidden>
  <div class="section-top"><div><h2 id="settingsHeading">Настройки</h2><p class="muted">Единое место управления разделами, пунктами и напоминаниями</p></div></div>
@@ -66,7 +66,7 @@
   <form id="taskForm" class="task-editor"><input type="hidden" id="editTaskId">
    <div class="form-grid"><label class="span-all">Название<input id="taskTitle" type="text" required maxlength="120" placeholder="Что нужно сделать"></label><label>Раздел<select id="taskSection" required></select></label><label>Время<input id="taskTime" type="time" required value="09:00"></label></div>
    <fieldset class="days-field"><legend>Дни недели</legend><div id="taskDays" class="days-choices"></div></fieldset>
-   <label class="block-label">Только в конкретный день (необязательно)<input id="taskOneOff" type="date"></label><label class="block-label">Заметка<input id="taskNote" type="text" maxlength="360" placeholder="Необязательно"></label>
+   <label class="block-label">Только в конкретный день (необязательно, вместо дней недели)<input id="taskOneOff" type="date"></label><label class="block-label">Заметка<input id="taskNote" type="text" maxlength="360" placeholder="Необязательно"></label>
    <div class="check-options"><label class="check-line"><input id="taskRemind" type="checkbox"> Напоминать</label><label class="check-line"><input id="taskActive" type="checkbox" checked> Пункт включён</label><label class="check-line"><input id="taskEssential" type="checkbox"> Главное на день</label></div>
    <div class="actions"><button class="primary" type="submit" id="saveTask">Добавить пункт</button><button type="button" id="cancelTaskEdit" hidden>Отменить редактирование</button></div>
   </form>
